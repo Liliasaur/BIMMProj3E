@@ -1,5 +1,5 @@
 ---
-title: "BIMM143 Project3 Rough"
+title: "BIMM143 Project3"
 output: html_notebook
 author: Lily Wang
 ---
