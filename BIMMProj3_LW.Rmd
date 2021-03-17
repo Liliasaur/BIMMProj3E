@@ -1,0 +1,145 @@
+---
+title: "BIMM143 Project3 Rough"
+output: html_notebook
+author: Lily Wang
+---
+Scientific Question: Within the Anomura infraorder, do three independently evolved crab-shaped organisms - hairy stone crabs, porcelain crabs, and king crabs - share genetic similarities?
+
+Background: The crab-like form as been observed to evolve at least four times independently within the Anomura infraorder, within the order Decapoda (Morrison et. al., 2002). PEPCK and sodium-potassium (NaK) ATPase, two nuclear protein genes, have been relatively well-conserved through evolution, but show significant base heterogeneity at the third codon that can account for diversity in phylogenetic relationships between families (Tsang et.al., 2008). 
+-----------------------------------------------------
+Scientific Hypothesis: If the nuclear protein gene DNA sequences of PEPCK and NaK ATPase for three members of the Anomura infraorder that have independently evolved crab-like shapes - the hairy stone crab (member of Lomisidae), the porcelain crab (member of Porcellanidae), and the king crab (member of Lithodidae) are analyzed, the sequences will show genetic similarities. 
+
+Here, we will extract the DNA sequences of PEPCK and NaK ATP-ase for each of the three organisms. We will perform pairwise sequence alignment to compare the similarities between the sequences. We will use a color-coded alignment to visualize the similarity of the multiple sequence alignments. 
+----------------------------------------------
+First, we will load in all the necessary packages: 
+1) BioConductor/BiocManager 
+2) seqinr: this will be used to extract the DNA sequences 
+3) Biostrings: this will be used to perform pairwise sequence alignment 4) msa: this will be used to perform multiple sequence alignment 
+4) ggmsa: this will be used to visualize the multiple sequence alignment
+
+Install seqinr package
+```{r}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("seqinr")
+```
+Install Biostrings
+```{r}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("Biostrings")
+```
+Install ggmsa 
+```{r}
+install.packages("ggmsa")
+```
+Load everything in
+```{r}
+library("seqinr")
+library("Biostrings")
+library("ggmsa")
+```
+
+Next, we will pull the DNA sequences from GenBank. Since the query from GenBank will create a dataframe with a lot more information than DNA sequences alone, we will use getSequence to pull out the DNA sequence only and store it as a vector. We will then record that sequence as a fasta file and read it back into R. We do this so that we do not need to write the file paths from our computer, which would make the R code impossible to run on anyone's computer without the user first having to retrive the fasta files on their own computer. 
+----------------------------------------------
+Retrieve PEPCK DNA sequence for L. hirta (Lomisidae), P. japonicus (Porcellanidae), N. nipponensis (Lithodidae)
+```{r}
+choosebank("genbank")
+Lomis_PEPCK <- query("Lomisp", "AC=B69318")
+Lomis_PEPCK_seq <- getSequence(Lomis_PEPCK$req[[1]])
+Porcell_PEPCK <- query("Porcellp", "AC=B69323")
+Porcell_PEPCK_seq <- getSequence(Lomis_PEPCK$req[[1]])
+Litho_PEPCK <- query("Lithop", "AC=B69320")
+Litho_PEPCK_seq <- getSequence(Litho_PEPCK$req[[1]])
+closebank()
+```
+# Retrieve NaK ATPase DNA sequence for L. hirta (Lomisidae), P. japonicus (Porcellanidae), N. nipponensis (Lithodidae)
+```{r}
+choosebank("genbank")
+Lomis_NaK <- query("Lomisn", "AC=B69249")
+Lomis_NaK_seq <- getSequence(Lomis_PEPCK$req[[1]])
+Porcell_NaK <- query("Porcelln", "AC=B69254")
+Porcell_NaK_seq <- getSequence(Lomis_PEPCK$req[[1]])
+Litho_NaK <- query("Lithon", "AC=B69251")
+Litho_NaK_seq <- getSequence(Litho_PEPCK$req[[1]])
+closebank()
+```
+# Turn PEPCK DNA sequence into fasta files 
+```{r}
+write.fasta(names="Lo_Pepck", sequences=Lomis_PEPCK_seq, file.out = "LomisP.fasta")
+write.fasta(names="Por_Pepck", sequences=Porcell_PEPCK_seq, file.out = "PorP.fasta")
+write.fasta(names="Li_Pepck", sequences=Litho_PEPCK_seq, file.out = "LithoP.fasta")
+```
+# Turn NaK ATPase DNA sequence into fasta files 
+```{r}
+write.fasta(names="Lo_NaK", sequences=Lomis_NaK_seq, file.out = "LomisN.fasta")
+write.fasta(names="Por_NaK", sequences=Porcell_NaK_seq, file.out = "PorN.fasta")
+write.fasta(names="Li_NaK", sequences=Litho_NaK_seq, file.out = "LithoN.fasta")
+```
+Next, we will read the fasta files as a DNAStringSet and then perform global pairwise alignment. The score that results from the alignment will be compared between Lomisidae/Porcellanidae, Porcellanidae/Lithodidae, and Lomisidae/Lithodidae. This alignment uses the Needleman-Wunsch algorithm, and gives a score of +2 to matches and a penalty of -1 to mismatches. Gap penalties have also been set, with a penalty of -4 for gapOpening (first position in a gap) and -2 gapExtension (subsequent positions in the same gap). The differences in gap penalties are because multiple gaps next to each other could have happened in the same event, so it would be unfair to penalize each gap equally.   
+------------------------------------------
+# Read fasta files as DNAStringset 
+```{r}
+PLomisDNA <- readDNAStringSet("LomisP.fasta", format = "fasta")
+PPorDNA <- readDNAStringSet("PorP.fasta", format = "fasta")
+PLithoDNA <- readDNAStringSet("LithoP.fasta", format = "fasta")
+NLomisDNA <- readDNAStringSet("LomisN.fasta", format = "fasta")
+NPorDNA <- readDNAStringSet("PorN.fasta", format = "fasta")
+NLithoDNA <- readDNAStringSet("LithoN.fasta", format = "fasta")
+```
+# Create a scoring matrix for pairwise alignment
+```{r}
+score <- nucleotideSubstitutionMatrix(match = 2, mismatch = -1, baseOnly = TRUE)
+```
+Now, global pairwise alignment will be run for PEPCK sequences for the 3 different combinations. 
+# Run global pairwise alignment for PEPCK sequences between L. hirta and P. japonicus
+```{r}
+globalAlignLP_P <- pairwiseAlignment(PLomisDNA, PPorDNA, substitutionMatrix = score, gapOpening = -4, gapExtension = -2)
+globalAlignLP_P
+```
+# Run global pairwise alignment for PEPCK sequences between P. japonicus and N. Nipponensis
+```{r}
+globalAlignPN_P <- pairwiseAlignment(PPorDNA, PLithoDNA, substitutionMatrix = score, gapOpening = -4, gapExtension = -2)
+globalAlignPN_P
+```
+# Run global pairwise alignment for PEPCK sequences between L. hirta and N. nipponensis 
+```{r}
+globalAlignLN_P <- pairwiseAlignment(PLomisDNA, PLithoDNA, substitutionMatrix = score, gapOpening = -4, gapExtension = -2)
+globalAlignLN_P
+```
+PEPCK conclusion: The alignment score for L. hirta vs P. japonicus was 1150, while the alignment scores for L. hirta vs N. nipponensis and P. japonicus vs N. nipponensis were both 38. This indicates that the DNA sequences between L. hirta and P. japonicus are more similar, and they are equally as different from N. nipponensis. 
+-----------------------------------------------------
+Now, global pairwise alignment will be run for NaK ATPase sequences for the 3 different combinations. 
+# Run global pairwise alignment for NaK ATPase sequences between L. hirta and P. japonicus
+```{r}
+globalAlignLP_N <- pairwiseAlignment(NLomisDNA, NPorDNA, substitutionMatrix = score, gapOpening = -4, gapExtension = -2)
+globalAlignLP_N
+```
+# Run global pairwise alignment for NaK ATPase sequences between P. japonicus and N. Nipponensis
+```{r}
+globalAlignPN_N <- pairwiseAlignment(NPorDNA, NLithoDNA, substitutionMatrix = score, gapOpening = -4, gapExtension = -2)
+globalAlignPN_N
+```
+# Run global pairwise alignment for NaK ATPase sequences between L. hirta and N. nipponensis 
+```{r}
+globalAlignLN_N <- pairwiseAlignment(NLomisDNA, NLithoDNA, substitutionMatrix = score, gapOpening = -4, gapExtension = -2)
+globalAlignLN_N
+```
+NaK conclusion: The alignment score for L. hirta vs P. japonicus was also 1150, while the alignment scores for L. hirta vs N. nipponensis and P. japonicus vs N. nipponensis were both 38 as well. This indicates that the DNA sequences between L. hirta and P. japonicus are more similar, and they are equally as different from N. nipponensis. 
+----------------------------------------------
+Final conclusion: 
+Given the positive pairwise alignment scores in all comparisons from the Needlman-Wunsch alignment, we can conclude that there were more similarities in DNA sequences than dissimilarities. L. hirta and P. japonicus were the most similar, and they were equally dissimilar from N. nipponensis. But, overall, the evidence supported the existence of genetic similarities within these two nuclear protein coding genes, PEPCK and NaK, between all three crab-like organisms in the Anomura infraorder, showing that convergent evolution has still resulted in genetically similar genes, likely due to the importance of PEPCK and Nak ATPase. 
+--------------------------------------------------
+We will also try visualizing the three PEPCK sequences aligned together, as well as the NaK sequences aligned together using ggmsa for a color-coded, easy to view plot. 
+# Visualize the PEPCK MSA
+```{r}
+Total_PEPCK <- c(PLomisDNA, PPorDNA, PLithoDNA)
+ggmsa(Total_PEPCK, start = 1, end = 100)
+```
+# Visualize the NaK MSA
+```{r}
+Total_NaK <- c(NLomisDNA, NPorDNA, NLithoDNA)
+ggmsa(Total_NaK, start = 1, end = 100)
+```
+
+
